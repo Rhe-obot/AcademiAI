@@ -357,4 +357,36 @@ IMPORTANT STRICT RULES:
       }
   });
 
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const { message, context } = req.body;
+      const { user, courses, tasks } = context;
+
+      const prompt = `You are AcademiAI, a helpful and motivating academic coach. You have access to the student's current profile, courses, and tasks.
+      
+STUDENT CONTEXT:
+- Name: ${user?.name || 'Student'}
+- Major: ${user?.major || 'General'}
+- Rank: ${user?.rank || 'Bronze'} (${user?.points || 0} XP)
+- Courses: ${courses?.map((c: any) => c.code + ': ' + c.name).join(', ') || 'No courses enrolled yet.'}
+- Tasks: ${tasks?.map((t: any) => t.title + ' (Status: ' + t.status + ', Due: ' + (t.deadline || 'No date') + ')').join('; ') || 'No tasks listed.'}
+
+USER MESSAGE:
+"${message}"
+
+INSTRUCTIONS:
+1. Be concise but friendly and motivating.
+2. Use the provided context to give specific advice (mention their courses or tasks by name).
+3. If they ask about what to do next, suggest focusing on their highest priority or closest deadline task.
+4. Keep the response to 2-3 short paragraphs maximum.
+5. Do NOT use markdown code blocks unless showing a small snippet.`;
+
+      const reply = await callOpenRouter(prompt, false);
+      res.json({ success: true, data: { reply } });
+    } catch (e: any) {
+      console.error(e);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
 export default app;
