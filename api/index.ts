@@ -3,9 +3,16 @@ import multer from "multer";
 import { createRequire } from "module";
 import "dotenv/config";
 
-// pdf-parse must be loaded via CommonJS require — it has no ESM export
-const _require = createRequire(import.meta.url);
-const pdfParse = _require("pdf-parse");
+// Lazy loader for pdf-parse — loaded on first use so module-level errors
+// don’t crash unrelated AI routes (e.g. suggest-schedule, generate-study-plan)
+let _pdfParse: any = null;
+function getPdfParse() {
+  if (!_pdfParse) {
+    const _require = createRequire(import.meta.url);
+    _pdfParse = _require("pdf-parse");
+  }
+  return _pdfParse;
+}
 
 const app = express();
 app.use(express.json());
@@ -114,6 +121,7 @@ app.use(express.json());
 
       let extracted_text = "";
       if (req.file.mimetype === 'application/pdf') {
+        const pdfParse = getPdfParse();
         const pdfData = await pdfParse(req.file.buffer);
         extracted_text = pdfData.text;
       } else {
@@ -177,6 +185,7 @@ ${text.substring(0, 30000)}`;
 
       if (req.file) {
         if (req.file.mimetype === 'application/pdf') {
+          const pdfParse = getPdfParse();
           const pdfData = await pdfParse(req.file.buffer);
           syllabus_text = pdfData.text;
         } else {

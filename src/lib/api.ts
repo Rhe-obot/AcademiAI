@@ -256,7 +256,7 @@ export const api = {
     return resValue.data;
   },
   getStudyPath: async (course_id: number | string) => {
-    const { data } = await supabase.from('study_paths').select('*').eq('course_id', course_id).single();
+    const { data } = await supabase.from('study_paths').select('*').eq('course_id', course_id).maybeSingle();
     return data;
   },
   generateStudyPath: (course_id: number | string, courseData?: { course_name?: string; course_code?: string; syllabus_summary?: string; materials_summary?: string }) =>
