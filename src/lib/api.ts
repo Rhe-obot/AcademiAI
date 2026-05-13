@@ -353,5 +353,9 @@ export const api = {
     if (error) throw error;
     return data || [];
   },
+  deleteSchedule: async (id: number) => {
+  const { error } = await supabase.from('schedules').delete().eq('id', id);
+  if (error) throw error;
+},
 };
 
