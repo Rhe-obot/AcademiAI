@@ -10,7 +10,8 @@ export function Tasks() {
   const [title, setTitle] = useState('');
   const [course, setCourse] = useState('');
   const [deadline, setDeadline] = useState('');
-  const [estimatedMinutes, setEstimatedMinutes] = useState('60');
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('10:00');
 
   const pendingTasks = tasks.filter(t => t.status === 'pending').sort((a, b) => {
     // Primary: priority_score descending (higher = more urgent)
@@ -30,6 +31,10 @@ export function Tasks() {
     // Add time component to deadline if it's just a date
     const finalDeadline = deadline.includes('T') ? new Date(deadline).toISOString() : new Date(`${deadline}T23:59:59`).toISOString();
     
+    // Calculate scheduled_start and scheduled_end based on deadline date and pickers
+    const scheduledStart = new Date(`${deadline}T${startTime}:00`).toISOString();
+    const scheduledEnd = new Date(`${deadline}T${endTime}:00`).toISOString();
+    
     // Convert course ID back from select
     const courseObj = courses.find(c => c.code === course);
     
@@ -38,7 +43,8 @@ export function Tasks() {
         title,
         course_id: courseObj?.id || 0,
         deadline: finalDeadline,
-        estimated_duration_mins: parseInt(estimatedMinutes) || 60,
+        scheduled_start: scheduledStart,
+        scheduled_end: scheduledEnd,
       });
       setEditingTaskId(null);
     } else {
@@ -47,7 +53,8 @@ export function Tasks() {
         course_id: courseObj?.id || 0,
         course: courseObj || null,
         deadline: finalDeadline,
-        estimated_duration_mins: parseInt(estimatedMinutes) || 60,
+        scheduled_start: scheduledStart,
+        scheduled_end: scheduledEnd,
         type: 'assignment'
       });
     }
@@ -69,10 +76,12 @@ export function Tasks() {
           <button 
             onClick={() => {
                setEditingTaskId(null);
-               setTitle('');
-               setCourse('');
-               setDeadline('');
-               setShowAddForm(true);
+                setTitle('');
+                setCourse('');
+                setDeadline('');
+                setStartTime('09:00');
+                setEndTime('10:00');
+                setShowAddForm(true);
             }}
             className="bg-indigo-600 text-white p-2 sm:px-4 sm:py-2.5 rounded-xl shadow-sm hover:bg-indigo-700 transition flex items-center gap-2"
           >
@@ -135,19 +144,32 @@ export function Tasks() {
                   />
                 )}
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">Est. Time (min)</label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input 
-                    type="number" 
-                    value={estimatedMinutes}
-                    onChange={(e) => setEstimatedMinutes(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-sm"
-                    min="5"
-                    step="5"
-                    required
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">From Time</label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                    <input 
+                      type="time" 
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-sm font-medium"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">To Time</label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                    <input 
+                      type="time" 
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-sm font-medium"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -206,7 +228,10 @@ export function Tasks() {
                       return null;
                     })()}
                     <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-[4px] font-bold inline-flex items-center gap-1">
-                      DO: {task.scheduled_start ? format(parseISO(task.scheduled_start), 'MMM d') : 'TBD'}
+                      TIME: {task.scheduled_start ? format(parseISO(task.scheduled_start), 'HH:mm') : '00:00'} - {task.scheduled_end ? format(parseISO(task.scheduled_end), 'HH:mm') : '00:00'}
+                    </span>
+                    <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-[4px] font-bold inline-flex items-center gap-1">
+                      ON: {task.scheduled_start ? format(parseISO(task.scheduled_start), 'MMM d') : 'TBD'}
                     </span>
                     <span className="text-[9px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded-[4px] font-bold inline-flex items-center gap-1">
                       DUE: {task.deadline ? format(parseISO(task.deadline), 'MMM d') : 'No deadline'}
@@ -219,7 +244,8 @@ export function Tasks() {
                      setTitle(task.title);
                      setCourse(task.course?.code || '');
                      setDeadline(task.deadline ? task.deadline.split('T')[0] : '');
-                     setEstimatedMinutes(String(task.estimated_duration_mins || 60));
+                     if (task.scheduled_start) setStartTime(format(parseISO(task.scheduled_start), 'HH:mm'));
+                     if (task.scheduled_end) setEndTime(format(parseISO(task.scheduled_end), 'HH:mm'));
                      setShowAddForm(true);
                      window.scrollTo({ top: 0, behavior: 'smooth' });
                   }} className="p-1 text-slate-400 hover:text-indigo-600 transition-colors" title="Edit Task">

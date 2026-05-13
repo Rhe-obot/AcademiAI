@@ -36,11 +36,13 @@ export interface Task {
   title: string;
   course_id: number;
   course?: Course | null;
-  deadline?: string; // ISO string
+  deadline?: string; // ISO string (Date)
+  start_time?: string; // Time string like "14:00"
+  end_time?: string; // Time string like "15:00"
   scheduled_start?: string; // ISO string
   status: TaskStatus;
   type: TaskType;
-  estimated_duration_mins: number;
+  estimated_duration_mins?: number; // Kept for backwards compatibility if needed
 }
 
 export type NotificationType = 'reminder' | 'deadline_warning' | 'missed' | 'rescheduled' | 'achievement' | 'streak';

@@ -14,6 +14,7 @@ import { Notifications } from './pages/Notifications';
 import { Profile } from './pages/Profile';
 import { Courses } from './pages/Courses';
 import { CourseDetails } from './pages/CourseDetails';
+import { MaterialDetails } from './pages/MaterialDetails';
 import { Schedule } from './pages/Schedule';
 import { Leaderboard } from './pages/Leaderboard';
 import { Toaster } from 'sonner';
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="tasks" element={<Tasks />} />
         <Route path="courses" element={<Courses />} />
         <Route path="courses/:id" element={<CourseDetails />} />
+        <Route path="courses/:course_id/materials/:material_id" element={<MaterialDetails />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="profile" element={<Profile />} />

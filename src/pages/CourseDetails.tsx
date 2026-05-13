@@ -19,17 +19,12 @@ export function CourseDetails() {
   const [uploadingMaterial, setUploadingMaterial] = useState(false);
   const [materialFile, setMaterialFile] = useState<File | null>(null);
 
-  const [activeMaterial, setActiveMaterial] = useState<CourseMaterial | null>(null);
-
   const [syllabusText, setSyllabusText] = useState('');
   const [parsing, setParsing] = useState(false);
   const [parsedData, setParsedData] = useState<any>(null);
 
   const [studyPath, setStudyPath] = useState<any>(null);
   const [generatingPath, setGeneratingPath] = useState(false);
-
-  const [generatingNotesId, setGeneratingNotesId] = useState<number | null>(null);
-  const [generatingPlanId, setGeneratingPlanId] = useState<number | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
 
@@ -84,33 +79,11 @@ export function CourseDetails() {
     try {
       await api.deleteCourseMaterial(matId);
       setMaterials(materials.filter(m => m.id !== matId));
-      if (activeMaterial?.id === matId) setActiveMaterial(null);
       localStorage.removeItem(`material_notes_${matId}`);
       localStorage.removeItem(`material_plan_${matId}`);
       toast.success('Material deleted');
     } catch (error: any) {
       toast.error('Failed to delete material');
-    }
-  };
-
-  const handleAddAllTasks = async () => {
-    if (!activeMaterial?.study_plan || !id) return;
-    try {
-      const courseObj = courses.find(c => c.id === Number(id));
-      for (const step of activeMaterial.study_plan) {
-        await addTask({
-          title: step.title,
-          description: step.description,
-          course_id: Number(id),
-          course: courseObj || null,
-          estimated_duration_mins: 60,
-          type: 'study',
-          deadline: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
-        });
-      }
-      toast.success('All tasks added to your Task board!');
-    } catch (error) {
-      toast.error('Failed to add some tasks.');
     }
   };
 
@@ -140,56 +113,6 @@ export function CourseDetails() {
       toast.error('Failed to upload material: ' + e.message);
     } finally {
       setUploadingMaterial(false);
-    }
-  };
-
-  const handleGenerateNotes = async (mat: CourseMaterial) => {
-    if (!mat.extracted_text) return;
-    if (!confirm("Generate personalized notes from this material?")) return;
-    
-    setGeneratingNotesId(mat.id);
-    try {
-      // request() in api.ts already unwraps `.data`, so res IS the notes object
-      const res = await api.generateCourseNotes({ text: mat.extracted_text, major: user?.major || undefined });
-      const notes = res?.notes || res;
-      
-      const updatedMaterials = materials.map(m => m.id === mat.id ? { ...m, generated_notes: notes } : m);
-      setMaterials(updatedMaterials);
-      if (activeMaterial?.id === mat.id) {
-         setActiveMaterial({ ...mat, generated_notes: notes });
-      }
-      localStorage.setItem(`material_notes_${mat.id}`, notes);
-      toast.success('Notes generated!');
-    } catch (e: any) {
-      console.error("Failed to generate notes", e);
-      toast.error('Failed to generate notes: ' + e.message);
-    } finally {
-      setGeneratingNotesId(null);
-    }
-  };
-
-  const handleGeneratePlan = async (mat: CourseMaterial) => {
-    if (!mat.extracted_text) return;
-    if (!confirm("Generate a step-by-step study plan?")) return;
-    
-    setGeneratingPlanId(mat.id);
-    try {
-      // request() already unwraps `.data`, so res IS the plan object
-      const res = await api.generateCourseStudyPlan({ text: mat.extracted_text });
-      const plan = res?.plan || res;
-      
-      const updatedMaterials = materials.map(m => m.id === mat.id ? { ...m, study_plan: plan } : m);
-      setMaterials(updatedMaterials);
-      if (activeMaterial?.id === mat.id) {
-         setActiveMaterial({ ...mat, study_plan: plan });
-      }
-      localStorage.setItem(`material_plan_${mat.id}`, JSON.stringify(plan));
-      toast.success('Study plan generated!');
-    } catch (e: any) {
-      console.error("Failed to generate plan", e);
-      toast.error('Failed to generate plan: ' + e.message);
-    } finally {
-      setGeneratingPlanId(null);
     }
   };
 
@@ -314,116 +237,28 @@ export function CourseDetails() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Sidebar list */}
             <div className="col-span-1 border border-slate-100 rounded-xl bg-slate-50 overflow-hidden divide-y divide-slate-100">
-                {materials.map(mat => (
-                  <div key={mat.id} className={cn(
-                    "flex items-center w-full text-left transition-colors hover:bg-slate-100 group",
-                    activeMaterial?.id === mat.id ? "bg-white border-l-4 border-indigo-500 font-bold" : "text-slate-600"
-                  )}>
+                {materials.map((mat) => (
+                  <div key={mat.id} className="flex items-center w-full text-left transition-colors hover:bg-slate-50 border border-slate-100 rounded-xl group bg-white p-2">
                     <button 
-                      onClick={() => setActiveMaterial(mat)}
-                      className="flex-grow px-4 py-3 text-sm font-medium"
+                      onClick={() => navigate(`/courses/${id}/materials/${mat.id}`)}
+                      className="flex-grow flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700"
                     >
-                      {mat.title}
+                      <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <span className="flex-1 text-left truncate">{mat.title}</span>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-colors" />
                     </button>
                     <button 
                       onClick={(e) => handleDeleteMaterial(mat.id, e)}
-                      className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Delete Material"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-               ))}
-            </div>
-            {/* Main content view */}
-            <div className="col-span-1 md:col-span-2 border border-slate-100 rounded-xl bg-white p-4 min-h-[300px]">
-               {activeMaterial ? (
-                 <div className="space-y-6">
-                    <h4 className="font-bold text-lg text-slate-900 border-b pb-2">{activeMaterial.title}</h4>
-                    
-                    <div className="flex gap-2">
-                       <button disabled={generatingNotesId === activeMaterial.id} onClick={() => handleGenerateNotes(activeMaterial)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50">
-                          {generatingNotesId === activeMaterial.id ? (
-                            <><div className="w-3 h-3 animate-spin border-2 border-slate-600 border-t-transparent rounded-full" /> Generating...</>
-                          ) : (
-                            <><BrainCircuit className="w-3 h-3" /> Generate Notes</>
-                          )}
-                       </button>
-                       <button disabled={generatingPlanId === activeMaterial.id} onClick={() => handleGeneratePlan(activeMaterial)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50">
-                          {generatingPlanId === activeMaterial.id ? (
-                            <><div className="w-3 h-3 animate-spin border-2 border-slate-600 border-t-transparent rounded-full" /> Generating...</>
-                          ) : (
-                            <><ListTodo className="w-3 h-3" /> Generate Plan</>
-                          )}
-                       </button>
-                    </div>
-
-                    {activeMaterial.generated_notes && (
-                      <div className="bg-indigo-50/50 rounded-xl p-4">
-                        <h5 className="text-xs font-bold uppercase text-indigo-800 tracking-wider mb-2">Personalized AI Notes</h5>
-                        <div className="prose prose-sm prose-p:leading-relaxed max-w-none text-slate-700">
-                           <ReactMarkdown>{activeMaterial.generated_notes}</ReactMarkdown>
-                        </div>
-                      </div>
-                    )}
-
-                    {activeMaterial.study_plan && activeMaterial.study_plan.length > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <h5 className="text-xs font-bold uppercase text-indigo-800 tracking-wider">Suggested Study Plan</h5>
-                          <button onClick={handleAddAllTasks} className="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded transition-colors">
-                            + Add All to Tasks
-                          </button>
-                        </div>
-                        <div className="space-y-3">
-                           {activeMaterial.study_plan.map((step: any, idx: number) => (
-                             <div key={idx} className="flex gap-3 bg-white border border-slate-100 p-3 rounded-lg shadow-sm">
-                                <div className="bg-indigo-100 text-indigo-700 font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs text-center mt-0.5">
-                                  {step.step || (idx + 1)}
-                                </div>
-                                <div>
-                                   <div className="text-sm font-bold text-slate-800">{step.title}</div>
-                                   <div className="text-xs text-slate-500 mt-1">{step.description}</div>
-                                </div>
-                                <button 
-                                  onClick={async () => {
-                                    try {
-                                      await api.createTask({
-                                        title: step.title,
-                                        description: step.description,
-                                        course_id: Number(id),
-                                        estimated_duration_mins: 60,
-                                        type: 'study'
-                                      });
-                                      toast.success('Task added to your pending list!');
-                                    } catch (e: any) {
-                                      toast.error('Failed to add task');
-                                    }
-                                  }}
-                                  className="ml-auto flex-shrink-0 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium px-2 py-1 rounded transition-colors"
-                                >
-                                   + Task
-                                </button>
-                             </div>
-                           ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {!activeMaterial.generated_notes && !activeMaterial.study_plan && (
-                      <div className="text-slate-400 text-sm italic">
-                         Select an action above to process this material with AI.
-                      </div>
-                    )}
-                 </div>
-               ) : (
-                 <div className="h-full flex flex-col items-center justify-center text-slate-400 text-sm">
-                    <FileText className="w-10 h-10 mb-2 opacity-50" />
-                    Select a material to view
-                 </div>
-               )}
+                ))}
             </div>
           </div>
         )}
