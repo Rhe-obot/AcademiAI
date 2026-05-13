@@ -144,7 +144,7 @@ export function Tasks() {
                   />
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">From Time</label>
                   <div className="relative">

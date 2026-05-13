@@ -1,10 +1,10 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Home, Calendar, LayoutList, User, Bell, BookOpen, Clock, Trophy } from 'lucide-react';
+import { Home, Calendar, LayoutList, User, Bell, BookOpen, Clock, Trophy, LogOut } from 'lucide-react';
 import { useAppStore } from '../store/AppProvider';
 
 export function Layout() {
-  const { notifications } = useAppStore();
+  const { notifications, logout } = useAppStore();
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
@@ -29,6 +29,16 @@ export function Layout() {
           <NavItem to="/leaderboard" icon={<Trophy className="w-5 h-5" />} label="Leaderboard" />
           <NavItem to="/notifications" icon={<Bell className="w-5 h-5" />} label="Notifications" badge={unreadCount} />
           <NavItem to="/profile" icon={<User className="w-5 h-5" />} label="Profile" />
+          
+          <div className="pt-4 mt-4 border-t border-slate-100">
+            <button 
+              onClick={() => { if(confirm("Are you sure you want to log out?")) logout(); }}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-colors w-full text-left text-rose-600 hover:bg-rose-50"
+            >
+              <LogOut className="w-5 h-5" />
+              Log Out
+            </button>
+          </div>
         </nav>
       </aside>
 
@@ -55,6 +65,13 @@ export function Layout() {
         <MobileNavItem to="/tasks" icon={<LayoutList className="w-5 h-5 rounded-md" />} label="Tasks" />
         <MobileNavItem to="/leaderboard" icon={<Trophy className="w-5 h-5 rounded-md" />} label="Rank" />
         <MobileNavItem to="/profile" icon={<User className="w-5 h-5 rounded-md" />} label="Me" />
+        <button 
+          onClick={() => { if(confirm("Log out?")) logout(); }}
+          className="flex flex-col items-center space-y-1 w-full h-full justify-center transition-opacity opacity-30 text-rose-600 hover:opacity-100"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="text-[9px] font-bold uppercase">Exit</span>
+        </button>
       </nav>
     </div>
   );
