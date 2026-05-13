@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { ArrowLeft, Upload, FileText, BrainCircuit, Wand2, ChevronRight, CheckCircle2, FileUp, ListTodo, FileType } from 'lucide-react';
+import { ArrowLeft, Upload, FileText, BrainCircuit, Wand2, ChevronRight, CheckCircle2, FileUp, ListTodo, FileType, Trash2, FolderOpen } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { Course, CourseMaterial } from '../types';
 import { useAppStore } from '../store/AppProvider';
@@ -10,7 +11,7 @@ import ReactMarkdown from 'react-markdown';
 export function CourseDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAppStore();
+  const { user, addTask, courses } = useAppStore();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -26,6 +27,9 @@ export function CourseDetails() {
 
   const [studyPath, setStudyPath] = useState<any>(null);
   const [generatingPath, setGeneratingPath] = useState(false);
+
+  const [generatingNotesId, setGeneratingNotesId] = useState<number | null>(null);
+  const [generatingPlanId, setGeneratingPlanId] = useState<number | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
 
@@ -59,9 +63,54 @@ export function CourseDetails() {
     if (!id) return;
     try {
       const mats = await api.getCourseMaterials(id);
-      setMaterials(mats);
+      const enrichedMats = mats.map((mat: CourseMaterial) => {
+        const cachedNotes = localStorage.getItem(`material_notes_${mat.id}`);
+        const cachedPlan = localStorage.getItem(`material_plan_${mat.id}`);
+        return {
+          ...mat,
+          generated_notes: cachedNotes || mat.generated_notes,
+          study_plan: cachedPlan ? JSON.parse(cachedPlan) : mat.study_plan,
+        };
+      });
+      setMaterials(enrichedMats);
     } catch (error) {
       console.error("Failed to load materials", error);
+    }
+  };
+
+  const handleDeleteMaterial = async (matId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Delete this material?")) return;
+    try {
+      await api.deleteCourseMaterial(matId);
+      setMaterials(materials.filter(m => m.id !== matId));
+      if (activeMaterial?.id === matId) setActiveMaterial(null);
+      localStorage.removeItem(`material_notes_${matId}`);
+      localStorage.removeItem(`material_plan_${matId}`);
+      toast.success('Material deleted');
+    } catch (error: any) {
+      toast.error('Failed to delete material');
+    }
+  };
+
+  const handleAddAllTasks = async () => {
+    if (!activeMaterial?.study_plan || !id) return;
+    try {
+      const courseObj = courses.find(c => c.id === Number(id));
+      for (const step of activeMaterial.study_plan) {
+        await addTask({
+          title: step.title,
+          description: step.description,
+          course_id: Number(id),
+          course: courseObj || null,
+          estimated_duration_mins: 60,
+          type: 'study',
+          deadline: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        });
+      }
+      toast.success('All tasks added to your Task board!');
+    } catch (error) {
+      toast.error('Failed to add some tasks.');
     }
   };
 
@@ -84,14 +133,11 @@ export function CourseDetails() {
       
       setMaterials([newMaterial, ...materials]);
       setMaterialFile(null);
-      
-      alert("Material uploaded and parsed successfully!");
-      
-      // Optional: Generate notes and study plan asynchronously in background or user clicks
+      toast.success('Material uploaded and text extracted!');
       
     } catch (e: any) {
       console.error(e);
-      alert("Failed to upload material: " + e.message);
+      toast.error('Failed to upload material: ' + e.message);
     } finally {
       setUploadingMaterial(false);
     }
@@ -101,21 +147,24 @@ export function CourseDetails() {
     if (!mat.extracted_text) return;
     if (!confirm("Generate personalized notes from this material?")) return;
     
+    setGeneratingNotesId(mat.id);
     try {
+      // request() in api.ts already unwraps `.data`, so res IS the notes object
       const res = await api.generateCourseNotes({ text: mat.extracted_text, major: user?.major || undefined });
-      const notes = res.data?.notes || res?.notes;
+      const notes = res?.notes || res;
       
-      // We don't have an update endpoint for materials yet, let's create a hack or just don't save to db, 
-      // wait, we can just save it into DB via supabase directly, or add an update api.
-      // But let's assume we want to update the local state for now and perhaps add an API for it later.
       const updatedMaterials = materials.map(m => m.id === mat.id ? { ...m, generated_notes: notes } : m);
       setMaterials(updatedMaterials);
-      if(activeMaterial?.id === mat.id) {
+      if (activeMaterial?.id === mat.id) {
          setActiveMaterial({ ...mat, generated_notes: notes });
       }
-      
+      localStorage.setItem(`material_notes_${mat.id}`, notes);
+      toast.success('Notes generated!');
     } catch (e: any) {
       console.error("Failed to generate notes", e);
+      toast.error('Failed to generate notes: ' + e.message);
+    } finally {
+      setGeneratingNotesId(null);
     }
   };
 
@@ -123,17 +172,24 @@ export function CourseDetails() {
     if (!mat.extracted_text) return;
     if (!confirm("Generate a step-by-step study plan?")) return;
     
+    setGeneratingPlanId(mat.id);
     try {
+      // request() already unwraps `.data`, so res IS the plan object
       const res = await api.generateCourseStudyPlan({ text: mat.extracted_text });
-      const plan = res.data?.plan || res?.plan;
+      const plan = res?.plan || res;
       
       const updatedMaterials = materials.map(m => m.id === mat.id ? { ...m, study_plan: plan } : m);
       setMaterials(updatedMaterials);
-      if(activeMaterial?.id === mat.id) {
+      if (activeMaterial?.id === mat.id) {
          setActiveMaterial({ ...mat, study_plan: plan });
       }
+      localStorage.setItem(`material_plan_${mat.id}`, JSON.stringify(plan));
+      toast.success('Study plan generated!');
     } catch (e: any) {
       console.error("Failed to generate plan", e);
+      toast.error('Failed to generate plan: ' + e.message);
+    } finally {
+      setGeneratingPlanId(null);
     }
   };
 
@@ -149,24 +205,39 @@ export function CourseDetails() {
       setParsedData(parsedData);
       setSyllabusText(''); 
       setFile(null);
-      alert("Syllabus parsed! AI will incorporate this into your schedule.");
+      toast.success('Syllabus analyzed! AI will incorporate this into your schedule.');
     } catch (error) {
       console.error(error);
-      alert("Failed to parse syllabus");
+      toast.error('Failed to parse syllabus. Check your file and try again.');
     } finally {
        setParsing(false);
     }
   };
 
   const handleGenerateStudyPath = async () => {
-    if (!id) return;
+    if (!id || !course) return;
     setGeneratingPath(true);
     try {
-      const res = await api.generateStudyPath(id);
-      setStudyPath(res.data);
+      // Pass course context so the AI generates a relevant, personalized path
+      const materialsSummary = materials.length > 0
+        ? materials.map(m => m.title).join(', ')
+        : undefined;
+      const syllabusText = parsedData?.course_title
+        ? `${parsedData.course_title} — Topics: ${(parsedData.topics || []).slice(0, 5).join(', ')}`
+        : undefined;
+
+      const res = await api.generateStudyPath(id, {
+        course_name: course.name,
+        course_code: course.code,
+        syllabus_summary: syllabusText,
+        materials_summary: materialsSummary,
+      });
+      // request() already unwraps .data, so res IS { generated_path, model_used }
+      setStudyPath(res?.generated_path || res);
+      toast.success('Study path generated!');
     } catch (error) {
       console.error(error);
-      alert("Failed to generate study path.");
+      toast.error('Failed to generate study path.');
     } finally {
       setGeneratingPath(false);
     }
@@ -233,21 +304,37 @@ export function CourseDetails() {
           </button>
         </div>
 
-        {materials.length > 0 && (
+        {materials.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-10 bg-slate-50/80 border border-slate-100 rounded-2xl text-center">
+            <FolderOpen className="w-12 h-12 text-indigo-200 mb-4" />
+            <h4 className="text-slate-800 font-bold text-lg">No materials yet</h4>
+            <p className="text-slate-500 text-sm mt-1 max-w-sm">
+              Upload your first PDF lecture slide or reading above to generate smart notes and study plans.
+            </p>
+          </div>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Sidebar list */}
             <div className="col-span-1 border border-slate-100 rounded-xl bg-slate-50 overflow-hidden divide-y divide-slate-100">
-               {materials.map(mat => (
-                  <button 
-                    key={mat.id}
-                    onClick={() => setActiveMaterial(mat)}
-                    className={cn(
-                      "w-full text-left px-4 py-3 text-sm font-medium transition-colors hover:bg-slate-100",
-                      activeMaterial?.id === mat.id ? "bg-white border-l-4 border-indigo-500 font-bold" : "text-slate-600"
-                    )}
-                  >
-                    {mat.title}
-                  </button>
+                {materials.map(mat => (
+                  <div key={mat.id} className={cn(
+                    "flex items-center w-full text-left transition-colors hover:bg-slate-100 group",
+                    activeMaterial?.id === mat.id ? "bg-white border-l-4 border-indigo-500 font-bold" : "text-slate-600"
+                  )}>
+                    <button 
+                      onClick={() => setActiveMaterial(mat)}
+                      className="flex-grow px-4 py-3 text-sm font-medium"
+                    >
+                      {mat.title}
+                    </button>
+                    <button 
+                      onClick={(e) => handleDeleteMaterial(mat.id, e)}
+                      className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete Material"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                ))}
             </div>
             {/* Main content view */}
@@ -257,11 +344,19 @@ export function CourseDetails() {
                     <h4 className="font-bold text-lg text-slate-900 border-b pb-2">{activeMaterial.title}</h4>
                     
                     <div className="flex gap-2">
-                       <button onClick={() => handleGenerateNotes(activeMaterial)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg flex items-center gap-1">
-                          <BrainCircuit className="w-3 h-3" /> Generate Notes
+                       <button disabled={generatingNotesId === activeMaterial.id} onClick={() => handleGenerateNotes(activeMaterial)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50">
+                          {generatingNotesId === activeMaterial.id ? (
+                            <><div className="w-3 h-3 animate-spin border-2 border-slate-600 border-t-transparent rounded-full" /> Generating...</>
+                          ) : (
+                            <><BrainCircuit className="w-3 h-3" /> Generate Notes</>
+                          )}
                        </button>
-                       <button onClick={() => handleGeneratePlan(activeMaterial)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg flex items-center gap-1">
-                          <ListTodo className="w-3 h-3" /> Generate Plan
+                       <button disabled={generatingPlanId === activeMaterial.id} onClick={() => handleGeneratePlan(activeMaterial)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50">
+                          {generatingPlanId === activeMaterial.id ? (
+                            <><div className="w-3 h-3 animate-spin border-2 border-slate-600 border-t-transparent rounded-full" /> Generating...</>
+                          ) : (
+                            <><ListTodo className="w-3 h-3" /> Generate Plan</>
+                          )}
                        </button>
                     </div>
 
@@ -276,7 +371,12 @@ export function CourseDetails() {
 
                     {activeMaterial.study_plan && activeMaterial.study_plan.length > 0 && (
                       <div>
-                        <h5 className="text-xs font-bold uppercase text-indigo-800 tracking-wider mb-3">Suggested Study Plan</h5>
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-xs font-bold uppercase text-indigo-800 tracking-wider">Suggested Study Plan</h5>
+                          <button onClick={handleAddAllTasks} className="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded transition-colors">
+                            + Add All to Tasks
+                          </button>
+                        </div>
                         <div className="space-y-3">
                            {activeMaterial.study_plan.map((step: any, idx: number) => (
                              <div key={idx} className="flex gap-3 bg-white border border-slate-100 p-3 rounded-lg shadow-sm">
@@ -297,9 +397,9 @@ export function CourseDetails() {
                                         estimated_duration_mins: 60,
                                         type: 'study'
                                       });
-                                      alert("Task added to your pending tasks!");
+                                      toast.success('Task added to your pending list!');
                                     } catch (e: any) {
-                                      alert("Failed to add task");
+                                      toast.error('Failed to add task');
                                     }
                                   }}
                                   className="ml-auto flex-shrink-0 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium px-2 py-1 rounded transition-colors"
@@ -325,6 +425,54 @@ export function CourseDetails() {
                  </div>
                )}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* AI Study Path Section */}
+      <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <BrainCircuit className="w-5 h-5 text-indigo-500" />
+            <h3 className="text-lg font-bold text-slate-900">AI Study Path</h3>
+          </div>
+          <button
+            onClick={handleGenerateStudyPath}
+            disabled={generatingPath}
+            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors disabled:opacity-50"
+          >
+            {generatingPath ? <div className="w-3 h-3 animate-spin border-2 border-indigo-600 border-t-transparent rounded-full" /> : <Wand2 className="w-3 h-3" />}
+            {generatingPath ? 'Generating...' : studyPath ? 'Regenerate' : 'Generate Path'}
+          </button>
+        </div>
+        {!studyPath ? (
+          <p className="text-xs text-slate-500 italic">
+            Click "Generate Path" to get a personalized week-by-week study plan for {course.code}.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {(studyPath.weeks || []).map((week: any, idx: number) => (
+              <div key={idx} className="border border-slate-100 rounded-xl p-4 bg-slate-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="bg-indigo-600 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shrink-0">
+                    {week.week || idx + 1}
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900">{week.focus}</h4>
+                </div>
+                {week.activities && (
+                  <ul className="space-y-1 ml-8 mb-2">
+                    {week.activities.map((act: string, i: number) => (
+                      <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                        <ChevronRight className="w-3 h-3 shrink-0 text-indigo-400 mt-0.5" />{act}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {week.goal && (
+                  <p className="ml-8 text-[10px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg font-medium">🎯 {week.goal}</p>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

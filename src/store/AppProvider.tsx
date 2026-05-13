@@ -16,6 +16,8 @@ interface AppState {
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
   addTask: (task: Omit<Task, 'id' | 'status' | 'scheduled_start'>) => Promise<void>;
+  updateTask: (id: number, data: Partial<Task>) => Promise<void>;
+  deleteTask: (id: number) => Promise<void>;
   completeTask: (id: number) => Promise<void>;
   markNotificationRead: (id: number) => Promise<void>;
   getRankFromPoints: (points: number) => Rank;
@@ -150,19 +152,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
          const reminded24 = localStorage.getItem(`reminded_24_${task.id}`);
          const reminded2 = localStorage.getItem(`reminded_2_${task.id}`);
          
-         const sendPush = (msg: string) => {
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification('Task Reminder', { body: msg, icon: '/vite.svg' });
-            }
-            toast.info('Task Reminder', { description: msg });
+         const sendPush = async (msg: string, titleStr: string, type: string) => {
+             try {
+                await api.createNotification({
+                   title: titleStr,
+                   message: msg,
+                   type: type
+                });
+             } catch(e) {}
          };
 
          if (diffHrs > 0 && diffHrs <= 24 && !reminded24) {
             localStorage.setItem(`reminded_24_${task.id}`, 'true');
-            sendPush(`Hey ${user.name || 'there'}, just reminding you that "${task.title}" is due in less than 24 hours!`);
+            sendPush(`Hey ${user.name || 'there'}, just reminding you that "${task.title}" is due in less than 24 hours!`, 'Task Reminder', 'deadline_warning');
          } else if (diffHrs > 0 && diffHrs <= 2 && !reminded2) {
             localStorage.setItem(`reminded_2_${task.id}`, 'true');
-            sendPush(`Urgent! "${task.title}" is due in less than 2 hours! Time to focus, ${user.name || 'boss'}.`);
+            sendPush(`Urgent! "${task.title}" is due in less than 2 hours! Time to focus, ${user.name || 'boss'}.`, 'Urgent Reminder', 'deadline_warning');
          }
       });
     };
@@ -195,7 +200,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const signup = async (name: string, email: string, password: string, major: string) => {
     try {
-      await api.register({ name, email, password });
+      await api.register({ name, email, password, major });
       // onAuthStateChange handles data fetching
     } catch (e) {
       console.error(e);
@@ -297,14 +302,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addNotification = (n: Omit<AppNotification, 'id' | 'created_at' | 'is_read'>) => {
-    const newNotif: AppNotification = {
-      ...n,
-      id: Math.floor(Math.random() * 10000),
-      created_at: new Date().toISOString(),
-      is_read: false,
-    };
-    setNotifications(prev => [newNotif, ...prev]);
+  const updateTask = async (id: number, data: Partial<Task>) => {
+    try {
+       await api.updateTask(id, data);
+       const newTasks = await api.getTasks();
+       setTasks(Array.isArray(newTasks) ? newTasks : (newTasks as any)?.data || []);
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  };
+
+  const deleteTask = async (id: number) => {
+    try {
+       await api.deleteTask(id);
+       setTasks(prev => prev.filter(t => t.id !== id));
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  };
+
+  const addNotification = async (n: Omit<AppNotification, 'id' | 'created_at' | 'is_read'>) => {
+    try {
+       await api.createNotification({
+          title: n.title,
+          message: n.message,
+          type: n.type
+       });
+       // Realtime listener catches it and adds to state
+    } catch(e) {}
   };
 
   const markNotificationRead = async (id: number) => {
@@ -320,7 +347,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider value={{ 
       user, tasks, notifications, courses, isLoading,
       login, signup, logout, updateProfile,
-      addTask, completeTask, markNotificationRead, getRankFromPoints,
+      addTask, updateTask, deleteTask, completeTask, markNotificationRead, getRankFromPoints,
       addCourse, removeCourse
     }}>
       {children}

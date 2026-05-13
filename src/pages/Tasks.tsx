@@ -1,40 +1,56 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store/AppProvider';
-import { Plus, Notebook, Clock, Calendar as CalendarIcon, CheckCircle2, ChevronDown, Circle } from 'lucide-react';
+import { Plus, Notebook, Clock, Calendar as CalendarIcon, CheckCircle2, ChevronDown, Circle, Edit2, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 export function Tasks() {
-  const { tasks, courses, addTask, completeTask } = useAppStore();
+  const { tasks, courses, addTask, updateTask, deleteTask, completeTask } = useAppStore();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [title, setTitle] = useState('');
   const [course, setCourse] = useState('');
   const [deadline, setDeadline] = useState('');
   const [estimatedMinutes, setEstimatedMinutes] = useState('60');
 
   const pendingTasks = tasks.filter(t => t.status === 'pending').sort((a, b) => {
-    if (!a.scheduled_start || !b.scheduled_start) return 0;
-    return new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime()
+    // Primary: priority_score descending (higher = more urgent)
+    const aScore = (a as any).priority_score ?? 0.5;
+    const bScore = (b as any).priority_score ?? 0.5;
+    if (Math.abs(bScore - aScore) > 0.05) return bScore - aScore;
+    // Secondary: deadline ascending
+    if (!a.deadline || !b.deadline) return 0;
+    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
   });
   const completedTasks = tasks.filter(t => t.status === 'completed');
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleSaveTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !course || !deadline) return;
     
     // Add time component to deadline if it's just a date
     const finalDeadline = deadline.includes('T') ? new Date(deadline).toISOString() : new Date(`${deadline}T23:59:59`).toISOString();
     
-    // Convert course ID back from select (it's the string value representing the selected option right now)
+    // Convert course ID back from select
     const courseObj = courses.find(c => c.code === course);
     
-    addTask({
-      title,
-      course_id: courseObj?.id || 0,
-      course: courseObj || null,
-      deadline: finalDeadline,
-      estimated_duration_mins: parseInt(estimatedMinutes) || 60,
-      type: 'assignment'
-    });
+    if (editingTaskId) {
+      updateTask(editingTaskId, {
+        title,
+        course_id: courseObj?.id || 0,
+        deadline: finalDeadline,
+        estimated_duration_mins: parseInt(estimatedMinutes) || 60,
+      });
+      setEditingTaskId(null);
+    } else {
+      addTask({
+        title,
+        course_id: courseObj?.id || 0,
+        course: courseObj || null,
+        deadline: finalDeadline,
+        estimated_duration_mins: parseInt(estimatedMinutes) || 60,
+        type: 'assignment'
+      });
+    }
     
     setTitle('');
     setCourse('');
@@ -51,7 +67,13 @@ export function Tasks() {
         </div>
         {!showAddForm && (
           <button 
-            onClick={() => setShowAddForm(true)}
+            onClick={() => {
+               setEditingTaskId(null);
+               setTitle('');
+               setCourse('');
+               setDeadline('');
+               setShowAddForm(true);
+            }}
             className="bg-indigo-600 text-white p-2 sm:px-4 sm:py-2.5 rounded-xl shadow-sm hover:bg-indigo-700 transition flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -63,12 +85,15 @@ export function Tasks() {
       {showAddForm && (
         <div className="bg-white border text-left border-slate-100 shadow-sm rounded-2xl p-5 sm:p-6 mb-8 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-slate-900">New Task</h3>
-            <button onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-slate-600 p-1">
+            <h3 className="text-lg font-bold text-slate-900">{editingTaskId ? 'Edit Task' : 'New Task'}</h3>
+            <button onClick={() => {
+              setShowAddForm(false);
+              setEditingTaskId(null);
+            }} className="text-slate-400 hover:text-slate-600 p-1">
               <Plus className="w-5 h-5 rotate-45" />
             </button>
           </div>
-          <form onSubmit={handleAddTask} className="space-y-4">
+          <form onSubmit={handleSaveTask} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">Task Title</label>
               <div className="relative">
@@ -146,7 +171,7 @@ export function Tasks() {
                 type="submit"
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-medium shadow-sm active:scale-[0.98] transition-all"
               >
-                Let AI Schedule It
+                {editingTaskId ? 'Save Changes' : 'Let AI Schedule It'}
               </button>
             </div>
           </form>
@@ -163,9 +188,10 @@ export function Tasks() {
               <div key={task.id} className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex gap-4 transition-all hover:shadow-md group">
                   <button 
                   onClick={() => completeTask(task.id)}
-                  className="mt-1 shrink-0 text-slate-200 group-hover:text-indigo-400 hover:!text-indigo-600 transition-colors focus:outline-none"
+                  title="Mark as Complete"
+                  className="mt-1 shrink-0 text-slate-200 group-hover:text-emerald-500 hover:!text-emerald-600 hover:bg-emerald-50 p-0.5 rounded-full transition-colors focus:outline-none"
                 >
-                  <Circle className="w-5 h-5" />
+                  <CheckCircle2 className="w-5 h-5" />
                 </button>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-xs text-slate-900 truncate">{task.title}</h4>
@@ -173,13 +199,37 @@ export function Tasks() {
                     <span className="text-[10px] text-slate-500 font-bold uppercase">
                       {task.course?.code || 'General'}
                     </span>
+                    {(() => {
+                      const score = (task as any).priority_score ?? 0.5;
+                      if (score >= 0.8) return <span className="text-[9px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-[4px] font-bold">🔥 HIGH</span>;
+                      if (score >= 0.6) return <span className="text-[9px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-[4px] font-bold">⚡ MED</span>;
+                      return null;
+                    })()}
                     <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-[4px] font-bold inline-flex items-center gap-1">
                       DO: {task.scheduled_start ? format(parseISO(task.scheduled_start), 'MMM d') : 'TBD'}
                     </span>
                     <span className="text-[9px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded-[4px] font-bold inline-flex items-center gap-1">
-                      DUE: {format(parseISO(task.deadline), 'MMM d')}
+                      DUE: {task.deadline ? format(parseISO(task.deadline), 'MMM d') : 'No deadline'}
                     </span>
                   </div>
+                </div>
+                <div className="flex flex-col gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => {
+                     setEditingTaskId(task.id);
+                     setTitle(task.title);
+                     setCourse(task.course?.code || '');
+                     setDeadline(task.deadline ? task.deadline.split('T')[0] : '');
+                     setEstimatedMinutes(String(task.estimated_duration_mins || 60));
+                     setShowAddForm(true);
+                     window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }} className="p-1 text-slate-400 hover:text-indigo-600 transition-colors" title="Edit Task">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => {
+                     if (confirm("Delete this task?")) deleteTask(task.id);
+                  }} className="p-1 text-slate-400 hover:text-red-500 transition-colors" title="Delete Task">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}

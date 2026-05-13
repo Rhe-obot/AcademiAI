@@ -39,7 +39,7 @@ export const api = {
       email: data.email, 
       password: data.password, 
       options: { 
-        data: { name: data.name },
+        data: { name: data.name, major: data.major },
         emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
       } 
     });
@@ -160,6 +160,13 @@ export const api = {
     if (error) throw error;
     return data || [];
   },
+  createNotification: async (data: any) => {
+    const user = await supabase.auth.getUser();
+    if (!user.data.user) return null;
+    const { data: res, error } = await supabase.from('notifications').insert({ ...data, user_id: user.data.user.id }).select().single();
+    if (error) throw error;
+    return res;
+  },
   readNotification: async (id: number | string) => {
     const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
     if (error) throw error;
@@ -180,12 +187,27 @@ export const api = {
     const user = await supabase.auth.getUser();
     if (!user.data.user) throw new Error('Not auth');
     const { data: profile } = await supabase.from('users').select('*').eq('id', user.data.user.id).single();
+    const points = profile?.points || 0;
+
+    const RANK_THRESHOLDS = [
+      { name: 'Bronze',      min: 0,    next: 'Silver',      nextMin: 100  },
+      { name: 'Silver',      min: 100,  next: 'Gold',        nextMin: 300  },
+      { name: 'Gold',        min: 300,  next: 'Platinum',    nextMin: 600  },
+      { name: 'Platinum',    min: 600,  next: 'Diamond',     nextMin: 1000 },
+      { name: 'Diamond',     min: 1000, next: 'Master',      nextMin: 1500 },
+      { name: 'Master',      min: 1500, next: 'Grandmaster', nextMin: 2000 },
+      { name: 'Grandmaster', min: 2000, next: null,          nextMin: null },
+    ];
+
+    const currentRank = [...RANK_THRESHOLDS].reverse().find(r => points >= r.min) || RANK_THRESHOLDS[0];
+    const pointsToNext = currentRank.nextMin !== null ? currentRank.nextMin - points : 0;
+
     return {
-      points: profile?.points || 0,
-      level: profile?.level_name || 'Bronze',
+      points,
+      level: profile?.level_name || currentRank.name,
       streak: profile?.streak || 0,
-      next_level: 'Silver',
-      points_to_next_level: 100,
+      next_level: currentRank.next || 'Grandmaster',
+      points_to_next_level: pointsToNext,
       badges: [],
       recent_badges: [],
       total_tasks_completed: 0
@@ -237,8 +259,9 @@ export const api = {
     const { data } = await supabase.from('study_paths').select('*').eq('course_id', course_id).single();
     return data;
   },
-  generateStudyPath: (course_id: number | string) => request<any>(`/ai/study-path/${course_id}`, { method: 'POST' }),
-  suggestSchedule: () => request<any>('/ai/suggest-schedule', { method: 'POST' }),
+  generateStudyPath: (course_id: number | string, courseData?: { course_name?: string; course_code?: string; syllabus_summary?: string; materials_summary?: string }) =>
+    request<any>(`/ai/study-path/${course_id}`, { method: 'POST', body: JSON.stringify(courseData || {}) }),
+  suggestSchedule: (tasks?: any[], userName?: string) => request<any>('/ai/suggest-schedule', { method: 'POST', body: JSON.stringify({ tasks: tasks || [], user_name: userName || 'student' }) }),
   suggestCourses: (data: any) => request<any>('/ai/suggest-courses', { method: 'POST', body: JSON.stringify(data) }),
 
   // Mood
@@ -297,6 +320,16 @@ export const api = {
     const { data, error } = await supabase.from('schedules').select('*, task:tasks(*)');
     if (error) throw error;
     return data;
+  },
+  createSchedule: async (data: any) => {
+    const user = await supabase.auth.getUser();
+    if (!user.data.user) return null;
+    const { data: res, error } = await supabase.from('schedules').insert({ ...data, user_id: user.data.user.id }).select().single();
+    if (error) {
+       console.error("Supabase Schedule Insert Error:", error);
+       throw error;
+    }
+    return res;
   },
   getTodaySchedule: async () => {
     const today = new Date().toISOString().split('T')[0];
