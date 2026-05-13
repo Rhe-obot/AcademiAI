@@ -40,6 +40,7 @@ export interface Task {
   start_time?: string; // Time string like "14:00"
   end_time?: string; // Time string like "15:00"
   scheduled_start?: string; // ISO string
+  scheduled_end?: string; // ISO string
   status: TaskStatus;
   type: TaskType;
   estimated_duration_mins?: number; // Kept for backwards compatibility if needed

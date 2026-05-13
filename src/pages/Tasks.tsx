@@ -118,7 +118,7 @@ export function Tasks() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">Course</label>
                 {courses.length > 0 ? (
@@ -238,7 +238,7 @@ export function Tasks() {
                     </span>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex flex-col gap-1 ml-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button onClick={() => {
                      setEditingTaskId(task.id);
                      setTitle(task.title);

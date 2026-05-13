@@ -165,8 +165,8 @@ export function Dashboard() {
              {(user?.name || 'A').split(' ').map(n => n[0]).join('').substring(0, 2)}
           </div>
           <div>
-            <h2 className="text-sm font-bold text-slate-900 leading-tight">{user.name}</h2>
-            <p className={cn("text-[9px] uppercase tracking-widest font-black", currentRankInfo.color.split(' ')[0])}>{user.rank} {user.major ? `• ${user.major}` : ''}</p>
+            <h2 className="text-base font-bold text-slate-900 leading-tight">{user.name}</h2>
+            <p className={cn("text-[10px] uppercase tracking-widest font-black", currentRankInfo.color.split(' ')[0])}>{user.rank} {user.major ? `• ${user.major}` : ''}</p>
           </div>
         </div>
         <div className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full text-[10px] font-black uppercase flex items-center gap-1 shrink-0">
@@ -187,19 +187,19 @@ export function Dashboard() {
             <div className="flex justify-center gap-2 sm:gap-4">
               <button onClick={() => handleRecordMood(2, 2)} className="p-2 sm:p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 hover:scale-105 transition-all text-slate-400 hover:text-rose-500 group flex flex-col items-center">
                  <Frown className="w-5 h-5 mb-1" />
-                 <span className="text-[9px] font-bold uppercase opacity-0 group-hover:opacity-100 transition-opacity">Low</span>
+                 <span className="text-[9px] font-bold uppercase sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">Low</span>
               </button>
               <button onClick={() => handleRecordMood(4, 3)} className="p-2 sm:p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 hover:scale-105 transition-all text-slate-400 hover:text-amber-500 group flex flex-col items-center">
                  <Meh className="w-5 h-5 mb-1" />
-                 <span className="text-[9px] font-bold uppercase opacity-0 group-hover:opacity-100 transition-opacity">Okay</span>
+                 <span className="text-[9px] font-bold uppercase sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">Okay</span>
               </button>
               <button onClick={() => handleRecordMood(7, 7)} className="p-2 sm:p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 hover:scale-105 transition-all text-slate-400 hover:text-emerald-500 group flex flex-col items-center">
                  <Smile className="w-5 h-5 mb-1" />
-                 <span className="text-[9px] font-bold uppercase opacity-0 group-hover:opacity-100 transition-opacity">Good</span>
+                 <span className="text-[9px] font-bold uppercase sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">Good</span>
               </button>
               <button onClick={() => handleRecordMood(9, 9)} className="p-2 sm:p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 hover:scale-105 transition-all text-slate-400 hover:text-indigo-500 group flex flex-col items-center">
                  <SmilePlus className="w-5 h-5 mb-1" />
-                 <span className="text-[9px] font-bold uppercase opacity-0 group-hover:opacity-100 transition-opacity">Great</span>
+                 <span className="text-[9px] font-bold uppercase sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">Great</span>
               </button>
             </div>
           </>
@@ -251,13 +251,13 @@ export function Dashboard() {
         <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl relative overflow-hidden">
           <Trophy className="absolute -right-3 -bottom-3 w-16 h-16 text-slate-100 opacity-60 rotate-12" />
           <p className="text-[10px] text-slate-500 font-bold uppercase mb-1 relative z-10">Points</p>
-          <p className="text-xl font-black text-indigo-600 relative z-10">{user?.points || 0}</p>
+          <p className="text-2xl font-black text-indigo-600 relative z-10">{user?.points || 0}</p>
           <p className="text-[9px] text-emerald-600 font-medium mt-1 relative z-10">Keep it up!</p>
         </div>
         <div className={cn("border p-4 rounded-2xl relative overflow-hidden", currentRankInfo.bg, currentRankInfo.border)}>
           <div className={cn("absolute top-0 right-0 -mr-4 -mt-4 w-16 h-16 rounded-full opacity-20", currentRankInfo.color.replace('text-', 'bg-').split(' ')[0])}></div>
           <p className={cn("text-[10px] font-bold uppercase mb-1 opacity-70", currentRankInfo.textAccent)}>Rank</p>
-          <p className={cn("text-xl font-black", currentRankInfo.textAccent)}>{user.rank}</p>
+          <p className={cn("text-2xl font-black", currentRankInfo.textAccent)}>{user.rank}</p>
           <div className={cn("w-full h-1 rounded-full mt-2 overflow-hidden border border-white/40", currentRankInfo.border.replace('border-', 'bg-').replace('200', '300'))}>
             <div className={cn("h-1 rounded-full transition-all duration-1000", currentRankInfo.color.replace('text-', 'bg-').split(' ')[0])} style={{ width: `${progressPct}%` }}></div>
           </div>
@@ -286,7 +286,7 @@ export function Dashboard() {
       )}
 
       {/* Rank Progress */}
-      <div className={cn("mt-4 p-4 rounded-2xl text-white flex items-center justify-between", currentRankInfo.border.replace('border-', 'bg-').replace('200', '900'))}>
+      <div className="mt-4 p-4 rounded-2xl bg-indigo-900 text-white flex items-center justify-between shadow-sm">
         <div>
           <p className="text-[9px] font-bold uppercase opacity-60">Next Rank</p>
           <p className="text-xs font-bold text-white">{nextRankInfo ? `${nextRankInfo.name} — ${nextRankInfo.threshold - (user?.points || 0)} pts away` : 'Max Rank Achieved 🏆'}</p>

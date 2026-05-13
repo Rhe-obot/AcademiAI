@@ -181,6 +181,16 @@ export const api = {
     if (error) throw error;
     return count || 0;
   },
+  deleteNotification: async (id: number | string) => {
+    const { error } = await supabase.from('notifications').delete().eq('id', id);
+    if (error) throw error;
+  },
+  clearAllNotifications: async () => {
+    const user = await supabase.auth.getUser();
+    if (!user.data.user) return;
+    const { error } = await supabase.from('notifications').delete().eq('user_id', user.data.user.id);
+    if (error) throw error;
+  },
   
   // Gamification (Simplified logic - relies on backend for actual tracking, or just simple selects)
   getGamificationProfile: async () => {

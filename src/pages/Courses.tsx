@@ -86,8 +86,8 @@ export function Courses() {
             </button>
           </div>
           <form onSubmit={handleAddCourse} className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-1">
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">Code</label>
                 <input 
                   type="text" 
@@ -98,7 +98,7 @@ export function Courses() {
                   required
                 />
               </div>
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">Course Name</label>
                 <div className="relative">
                   <Book className="absolute left-3 top-2.5 w-5 h-5 text-slate-400" />

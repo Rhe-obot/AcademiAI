@@ -134,17 +134,17 @@ export function MaterialDetails() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
           {/* Tab Switcher */}
-          <div className="flex p-1 bg-slate-100 rounded-2xl w-fit">
+          <div className="flex p-1 bg-slate-100 rounded-2xl w-full sm:w-fit overflow-x-auto no-scrollbar">
             <button 
               onClick={() => setActiveTab('notes')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'notes' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'notes' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <BrainCircuit className="w-4 h-4" />
               Notes
             </button>
             <button 
               onClick={() => setActiveTab('plan')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'plan' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'plan' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <ListTodo className="w-4 h-4" />
               Study Plan
@@ -232,7 +232,7 @@ export function MaterialDetails() {
                               toast.error('Failed to add task');
                             }
                           }}
-                          className="mt-3 text-xs font-bold text-emerald-600 bg-white border border-emerald-100 px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors opacity-0 group-hover:opacity-100"
+                          className="mt-3 text-xs font-bold text-emerald-600 bg-white border border-emerald-100 px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors sm:opacity-0 sm:group-hover:opacity-100"
                         >
                           + Add to Tasks
                         </button>

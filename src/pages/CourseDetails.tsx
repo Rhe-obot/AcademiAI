@@ -252,7 +252,7 @@ export function CourseDetails() {
                     </button>
                     <button 
                       onClick={(e) => handleDeleteMaterial(mat.id, e)}
-                      className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-2 text-slate-300 hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                       title="Delete Material"
                     >
                       <Trash2 className="w-4 h-4" />

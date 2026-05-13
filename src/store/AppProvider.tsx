@@ -15,11 +15,14 @@ interface AppState {
   signup: (name: string, email: string, password: string, major: string) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
-  addTask: (task: Omit<Task, 'id' | 'status' | 'scheduled_start'>) => Promise<void>;
+  addTask: (task: Omit<Task, 'id' | 'status'>) => Promise<void>;
   updateTask: (id: number, data: Partial<Task>) => Promise<void>;
   deleteTask: (id: number) => Promise<void>;
   completeTask: (id: number) => Promise<void>;
   markNotificationRead: (id: number) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  deleteNotification: (id: number) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   getRankFromPoints: (points: number) => Rank;
   addCourse: (course: Omit<Course, 'id'>) => Promise<void>;
   removeCourse: (id: number) => Promise<void>;
@@ -252,12 +255,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addTask = async (taskInput: Omit<Task, 'id' | 'status' | 'scheduled_start'>) => {
+  const addTask = async (taskInput: Omit<Task, 'id' | 'status'>) => {
     try {
       const res = await api.createTask({
         title: taskInput.title,
         course_id: taskInput.course_id,
         deadline: taskInput.deadline,
+        scheduled_start: taskInput.scheduled_start,
+        scheduled_end: taskInput.scheduled_end,
         estimated_duration_mins: taskInput.estimated_duration_mins,
         type: taskInput.type || 'assignment',
       });
@@ -342,12 +347,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
        console.error(e);
     }
   };
+  
+  const markAllNotificationsRead = async () => {
+    try {
+      await api.readAllNotifications();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+  
+  const deleteNotification = async (id: number) => {
+    try {
+      await api.deleteNotification(id);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+  
+  const clearAllNotifications = async () => {
+    try {
+      await api.clearAllNotifications();
+      setNotifications([]);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <AppContext.Provider value={{ 
       user, tasks, notifications, courses, isLoading,
       login, signup, logout, updateProfile,
-      addTask, updateTask, deleteTask, completeTask, markNotificationRead, getRankFromPoints,
+      addTask, updateTask, deleteTask, completeTask, 
+      markNotificationRead, markAllNotificationsRead, deleteNotification, clearAllNotifications,
+      getRankFromPoints,
       addCourse, removeCourse
     }}>
       {children}
