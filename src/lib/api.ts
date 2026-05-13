@@ -273,6 +273,7 @@ export const api = {
     request<any>(`/ai/study-path/${course_id}`, { method: 'POST', body: JSON.stringify(courseData || {}) }),
   suggestSchedule: (tasks?: any[], userName?: string) => request<any>('/ai/suggest-schedule', { method: 'POST', body: JSON.stringify({ tasks: tasks || [], user_name: userName || 'student' }) }),
   suggestCourses: (data: any) => request<any>('/ai/suggest-courses', { method: 'POST', body: JSON.stringify(data) }),
+  chat: (data: { message: string; context: any }) => request<any>('/ai/chat', { method: 'POST', body: JSON.stringify(data) }),
 
   // Mood
   recordMood: async (data: any) => {

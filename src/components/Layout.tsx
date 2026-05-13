@@ -1,7 +1,8 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Home, Calendar, LayoutList, User, Bell, BookOpen, Clock, Trophy, LogOut } from 'lucide-react';
+import { Home, Calendar, LayoutList, User, Bell, BookOpen, Clock, Trophy, LogOut, MessageSquare, Sparkles } from 'lucide-react';
 import { useAppStore } from '../store/AppProvider';
+import { AiChat } from './AiChat';
 
 export function Layout() {
   const { notifications, logout } = useAppStore();
@@ -47,12 +48,15 @@ export function Layout() {
         <Outlet />
       </main>
 
+      <AiChat />
+
       {/* Bottom Nav for Mobile */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 h-16 flex justify-around items-center px-2 z-50 pb-safe overflow-x-auto">
         <MobileNavItem to="/" icon={<Home className="w-5 h-5 rounded-md" />} label="Home" />
         <MobileNavItem to="/schedule" icon={<Clock className="w-5 h-5 rounded-md" />} label="Schedule" />
         <MobileNavItem to="/courses" icon={<BookOpen className="w-5 h-5 rounded-md" />} label="Courses" />
         <MobileNavItem to="/tasks" icon={<LayoutList className="w-5 h-5 rounded-md" />} label="Tasks" />
+        <MobileNavItem to="/notifications" icon={<Bell className="w-5 h-5 rounded-md" />} label="Updates" badge={unreadCount} />
         <MobileNavItem to="/leaderboard" icon={<Trophy className="w-5 h-5 rounded-md" />} label="Rank" />
         <MobileNavItem to="/profile" icon={<User className="w-5 h-5 rounded-md" />} label="Me" />
       </nav>

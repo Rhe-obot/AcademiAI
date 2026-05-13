@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store/AppProvider';
-import { Trophy, Flame, Target, CheckCircle2, Circle, AlertCircle, Wand2, Frown, Meh, Smile, SmilePlus, Battery, BatteryFull, BatteryMedium, BatteryLow, Clock, X, Calendar } from 'lucide-react';
+import { Trophy, Flame, Target, CheckCircle2, Circle, AlertCircle, Wand2, Frown, Meh, Smile, SmilePlus, Battery, BatteryFull, BatteryMedium, BatteryLow, Clock, X, Calendar, Sparkles } from 'lucide-react';
 import { format, isToday, parseISO } from 'date-fns';
 import { cn } from '../lib/utils';
 import { Star, Shield, Award, Hexagon, Flame as FlameIcon } from 'lucide-react';
@@ -18,7 +18,7 @@ const RANKS = [
 ] as const;
 
 export function Dashboard() {
-  const { user, tasks, completeTask } = useAppStore();
+  const { user, tasks, completeTask, recalculatePriorities } = useAppStore();
   const [moodSaved, setMoodSaved] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
@@ -208,14 +208,23 @@ export function Dashboard() {
 
       <div className="flex justify-between items-center px-1">
          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-1">Your Dashboard</h4>
-         <button 
-           onClick={handleSuggestSchedule}
-           disabled={suggesting}
-           className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors disabled:opacity-50"
-          >
-           {suggesting ? <div className="w-3 h-3 animate-spin border-2 border-indigo-600 border-t-transparent rounded-full" /> : <Wand2 className="w-3 h-3" />}
-           {suggesting ? 'Thinking...' : 'Suggest Schedule'}
-         </button>
+         <div className="flex gap-2">
+           <button 
+             onClick={recalculatePriorities}
+             className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors"
+           >
+             <Sparkles className="w-3 h-3" />
+             AI Prioritize
+           </button>
+           <button 
+             onClick={handleSuggestSchedule}
+             disabled={suggesting}
+             className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 text-purple-600 bg-purple-50 px-3 py-1.5 rounded-full hover:bg-purple-100 transition-colors disabled:opacity-50"
+            >
+             {suggesting ? <div className="w-3 h-3 animate-spin border-2 border-purple-600 border-t-transparent rounded-full" /> : <Wand2 className="w-3 h-3" />}
+             {suggesting ? 'Thinking...' : 'Suggest Schedule'}
+           </button>
+         </div>
       </div>
 
       {/* Main Smart Action Bento Section */}

@@ -26,6 +26,8 @@ interface AppState {
   getRankFromPoints: (points: number) => Rank;
   addCourse: (course: Omit<Course, 'id'>) => Promise<void>;
   removeCourse: (id: number) => Promise<void>;
+  recalculatePriorities: () => Promise<void>;
+  chatWithAI: (message: string) => Promise<string>;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -64,6 +66,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTasks(Array.isArray(tObj) ? tObj : (tObj as any)?.data || []);
       setNotifications(Array.isArray(nObj) ? nObj : (nObj as any)?.data || []);
       setCourses(c || []);
+
+      // Auto-reschedule missed tasks
+      const allTasks = Array.isArray(tObj) ? tObj : (tObj as any)?.data || [];
+      const today = new Date().toISOString().split('T')[0];
+      const missedTasks = allTasks.filter((t: any) => t.status !== 'completed' && t.deadline && isBefore(parseISO(t.deadline), subDays(new Date(), 1)));
+      
+      if (missedTasks.length > 0) {
+        const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+        for (const t of missedTasks) {
+          await api.updateTask(t.id, { 
+            deadline: tomorrow, 
+            status: 'rescheduled',
+            scheduled_start: t.scheduled_start ? tomorrow + 'T' + format(parseISO(t.scheduled_start), 'HH:mm') + ':00.000Z' : null,
+            scheduled_end: t.scheduled_end ? tomorrow + 'T' + format(parseISO(t.scheduled_end), 'HH:mm') + ':00.000Z' : null
+          });
+        }
+        // Refresh tasks after rescheduling
+        const refreshedTasks = await api.getTasks();
+        setTasks(Array.isArray(refreshedTasks) ? refreshedTasks : (refreshedTasks as any)?.data || []);
+        
+        toast.info(`Auto-rescheduled ${missedTasks.length} missed tasks to tomorrow.`);
+      }
     } catch (e: any) {
       const errMsg = e?.message || (typeof e === 'string' ? e : '');
       const isAuthError = errMsg.includes('Auth session missing') || 
@@ -375,6 +399,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const recalculatePriorities = async () => {
+    if (!user || tasks.length === 0) return;
+    try {
+      toast.loading("AI is prioritizing your tasks...", { id: 'priority-toast' });
+      const context = {
+        user: { name: user.name, major: user.major, rank: user.rank },
+        tasks: tasks.map(t => ({ id: t.id, title: t.title, deadline: t.deadline, type: t.type }))
+      };
+      await api.suggestSchedule(tasks, user.name);
+      const newTasks = await api.getTasks();
+      setTasks(Array.isArray(newTasks) ? newTasks : (newTasks as any)?.data || []);
+      toast.success("Tasks prioritized by AI!", { id: 'priority-toast' });
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to prioritize tasks.", { id: 'priority-toast' });
+    }
+  };
+
+  const chatWithAI = async (message: string) => {
+    try {
+      const context = {
+        user: { name: user?.name, major: user?.major, points: user?.points, rank: user?.rank },
+        courses: courses.map(c => ({ code: c.code, name: c.name })),
+        tasks: tasks.map(t => ({ title: t.title, deadline: t.deadline, status: t.status }))
+      };
+      const res = await api.chat({ message, context });
+      return res.reply || res.text || "I'm sorry, I couldn't process that.";
+    } catch (e) {
+      console.error(e);
+      return "I'm having trouble connecting to my brain right now. Try again later!";
+    }
+  };
+
   return (
     <AppContext.Provider value={{ 
       user, tasks, notifications, courses, isLoading,
@@ -382,7 +439,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addTask, updateTask, deleteTask, completeTask, 
       markNotificationRead, markAllNotificationsRead, deleteNotification, clearAllNotifications,
       getRankFromPoints,
-      addCourse, removeCourse
+      addCourse, removeCourse,
+      recalculatePriorities,
+      chatWithAI
     }}>
       {children}
     </AppContext.Provider>
