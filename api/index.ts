@@ -5,11 +5,13 @@ import "dotenv/config";
 
 // Lazy loader for pdf-parse — loaded on first use so module-level errors
 // don’t crash unrelated AI routes (e.g. suggest-schedule, generate-study-plan)
+// We import the internal lib file directly to bypass pdf-parse's self-test
+// which tries to read a file from disk and crashes on Vercel's serverless runtime.
 let _pdfParse: any = null;
 function getPdfParse() {
   if (!_pdfParse) {
     const _require = createRequire(import.meta.url);
-    _pdfParse = _require("pdf-parse");
+    _pdfParse = _require("pdf-parse/lib/pdf-parse.js");
   }
   return _pdfParse;
 }
