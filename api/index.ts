@@ -3,8 +3,9 @@ import multer from "multer";
 import { createRequire } from "module";
 import "dotenv/config";
 
-const require = createRequire(import.meta.url);
-const { PDFParse } = require("pdf-parse");
+// pdf-parse must be loaded via CommonJS require — it has no ESM export
+const _require = createRequire(import.meta.url);
+const pdfParse = _require("pdf-parse");
 
 const app = express();
 app.use(express.json());
@@ -70,7 +71,8 @@ app.use(express.json());
           body: JSON.stringify({
             model: model,
             messages: [{ role: "user", content: prompt }],
-            response_format: expectJson ? { type: "json_object" } : undefined,
+            // NOTE: response_format is intentionally omitted — many free models return 406
+            // JSON output is enforced via strict prompt instructions instead
             max_tokens: 8000,
             temperature: 0.3
           })
@@ -112,9 +114,7 @@ app.use(express.json());
 
       let extracted_text = "";
       if (req.file.mimetype === 'application/pdf') {
-        const parser = new PDFParse({ data: req.file.buffer });
-        const pdfData = await parser.getText();
-        await parser.destroy();
+        const pdfData = await pdfParse(req.file.buffer);
         extracted_text = pdfData.text;
       } else {
         extracted_text = req.file.buffer.toString('utf-8');
@@ -177,9 +177,7 @@ ${text.substring(0, 30000)}`;
 
       if (req.file) {
         if (req.file.mimetype === 'application/pdf') {
-          const parser = new PDFParse({ data: req.file.buffer });
-          const pdfData = await parser.getText();
-          await parser.destroy();
+          const pdfData = await pdfParse(req.file.buffer);
           syllabus_text = pdfData.text;
         } else {
           syllabus_text = req.file.buffer.toString('utf-8');
